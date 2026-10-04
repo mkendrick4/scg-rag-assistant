@@ -1,0 +1,8 @@
+Security Classification Guide
+
+Section 1.1:
+Routine scheduling information is UNCLASSIFIED.
+
+Section 3.2:
+Information revealing the operational range of Project Falcon
+is classified CONFIDENTIAL.

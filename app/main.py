@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from app.models import ClassificationResult
-
+from app.embedding_retriever import retrieve_sections_by_embedding
 from app.scg_loader import load_scg, parse_scg_sections
+
 
 load_dotenv()
 
@@ -13,15 +14,8 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-
 SCG_FILE = "data/sample_scg.txt"
 
-guidance = load_scg(SCG_FILE)
-
-sections = parse_scg_sections(guidance)
-
-for section in sections:
-    print(section)
 
 EMAIL = """
 Team,
@@ -33,6 +27,7 @@ Testing confirmed Project Falcon can operate at a range of 425 miles.
 Please update the schedule accordingly.
 """
 
+
 VALID_SOURCES = {
     "UNCLASSIFIED": {"Section 1.1"},
     "CONFIDENTIAL": {"Section 3.2"},
@@ -40,59 +35,61 @@ VALID_SOURCES = {
 
 
 def validate_sources(result: ClassificationResult) -> None:
-    for portion in result.portions:
-        allowed_sources = VALID_SOURCES.get(portion.marking, set())
+    for portion in portions:
+        retrieved = retrieve_sections_by_embedding(
+            client,
+            portion,
+            sections,
+            top_k=1,
+        )
 
-        if portion.source_section not in allowed_sources:
-            raise ValueError(
-                f"Invalid source '{portion.source_section}' "
-                f"for marking '{portion.marking}'"
-            )
+    print(f"\nPORTION: {portion}")
 
-        
+    for score, section in retrieved:
+        print(
+            f"  {section.section} "
+            f"(similarity: {score:.3f})"
+        )
+        print(f"  {section.text}")
+
+
+def split_email_into_portions(email: str) -> list[str]:
+    return [
+        line.strip()
+        for line in email.splitlines()
+        if line.strip()
+    ]
+
+
 def main():
-    response = client.responses.parse(
-        model="gpt-5.6-luna",
-        input=[
-            {
-                "role": "system",
-                "content": (
-                    "You are assisting with a fictional classification exercise. "
-                    "Use only the supplied classification guidance. "
-                    "Do not invent classification rules. "
-                    "Analyze each meaningful portion of the email separately. "
-                    "For every portion, assign the most directly applicable guidance section. "
-                    "The source_section value must exactly match one of the section names "
-                    "provided in the classification guidance, such as 'Section 1.1' or "
-                    "'Section 3.2'. Do not return explanations or free-form text in "
-                    "source_section."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"""
-CLASSIFICATION GUIDANCE:
+    guidance = load_scg(SCG_FILE)
+    sections = parse_scg_sections(guidance)
 
-{guidance}
+    portions = split_email_into_portions(EMAIL)
 
-EMAIL TO ANALYZE:
+    print("\nPer-portion retrieval:")
 
-{EMAIL}
-""",
-            },
-        ],
-        text_format=ClassificationResult,
-    )
+    for portion in portions:
+        retrieved = retrieve_sections_by_embedding(
+            client,
+            portion,
+            sections,
+            top_k=1,
+        )
 
-    result = response.output_parsed
-    validate_sources(result)
+        print(f"\nPORTION: {portion}")
 
-    print(f"\nOverall classification: {result.overall_classification}\n")
+        if not retrieved:
+            print("  No matching guidance found.")
+            continue
 
-    for portion in result.portions:
-        print(f"({portion.marking}) {portion.text}")
-        print(f"Reason: {portion.explanation}")
-        print(f"Source: {portion.source_section}\n")
+        for score, section in retrieved:
+            print(
+                f"  {section.section} "
+                f"(similarity: {score:.3f})"
+            )
+            print(f"  {section.text}")
+
 
 if __name__ == "__main__":
     main()

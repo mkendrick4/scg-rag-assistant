@@ -1,7 +1,9 @@
 Security Classification Guide
 
 Section 1.1:
-Routine scheduling information is UNCLASSIFIED.
+Routine administrative and scheduling information, including meeting dates,
+calendar changes, schedule updates, and coordination instructions, is
+UNCLASSIFIED.
 
 Section 3.2:
 Information revealing the operational range of Project Falcon

@@ -11,18 +11,18 @@ ClassificationLevel = Literal[
 ]
 
 
-class PortionAnalysis(BaseModel):
-    text: str
-    marking: ClassificationLevel
-    explanation: str
-    source_section: str
-
-
-class ClassificationResult(BaseModel):
-    overall_classification: ClassificationLevel
-    portions: list[PortionAnalysis]
-
-
 class SCGSection(BaseModel):
     section: str
     text: str
+
+
+class PortionAnalysis(BaseModel):
+    text: str
+    marking: ClassificationLevel | None
+    explanation: str
+    source_section: str | None
+
+
+class ClassificationResult(BaseModel):
+    overall_classification: ClassificationLevel | None
+    portions: list[PortionAnalysis]

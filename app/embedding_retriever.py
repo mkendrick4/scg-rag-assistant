@@ -40,11 +40,31 @@ def cosine_similarity(
     return dot_product / (magnitude_a * magnitude_b)
 
 
+def embed_sections(
+    client: OpenAI,
+    sections: list[SCGSection],
+) -> list[tuple[SCGSection, list[float]]]:
+    embedded_sections = []
+
+    for section in sections:
+        embedding = get_embedding(
+            client,
+            section.text,
+        )
+
+        embedded_sections.append(
+            (section, embedding)
+        )
+
+    return embedded_sections
+
+
 def retrieve_sections_by_embedding(
     client: OpenAI,
     query: str,
-    sections: list[SCGSection],
+    embedded_sections: list[tuple[SCGSection, list[float]]],
     top_k: int = 1,
+    min_similarity: float = 0.30,
 ) -> list[tuple[float, SCGSection]]:
     query_embedding = get_embedding(
         client,
@@ -53,20 +73,16 @@ def retrieve_sections_by_embedding(
 
     scored_sections = []
 
-    for section in sections:
-        section_embedding = get_embedding(
-            client,
-            section.text,
-        )
-
+    for section, section_embedding in embedded_sections:
         score = cosine_similarity(
             query_embedding,
             section_embedding,
         )
 
-        scored_sections.append(
-            (score, section)
-        )
+        if score >= min_similarity:
+            scored_sections.append(
+                (score, section)
+            )
 
     scored_sections.sort(
         key=lambda item: item[0],
